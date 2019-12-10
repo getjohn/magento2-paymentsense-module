@@ -677,6 +677,7 @@ trait Transactions
         $billingAddress = $order->getBillingAddress();
         $config = $this->getConfigHelper();
         $orderId = $order->getRealOrderId();
+	$config->setStoreId($order->getStoreId());
         $total = $config->getUseBaseCurrency() ? $order->getBaseTotalDue() : $order->getTotalDue();
         $currency = $config->getUseBaseCurrency() ? $order->getBaseCurrencyCode() : $order->getOrderCurrencyCode();
         return [
