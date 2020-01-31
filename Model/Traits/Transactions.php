@@ -467,11 +467,27 @@ trait Transactions
         $payment->setIsTransactionPending($response['StatusCode'] !== TransactionResultCode::SUCCESS);
         $payment->setIsTransactionClosed($response['TransactionType'] === TransactionType::SALE);
         $this->getModuleHelper()->setPaymentTransactionAdditionalInfo($payment, $response);
+
+	// convert amount to base amount, expected by Magento payment operations
+        $amount = (double)$response['Amount'] / 100;
+	if($order->getTotalDue() > 0
+            && $order->getOrderCurrencyCode() != $order->getBaseCurrencyCode() // order and base currency are different
+            && $response['CurrencyCode'] == DataBuilder::getCurrencyIsoCode($order->getOrderCurrencyCode()) // payment is in order currency
+        )
+        {
+            $convertedBack = $amount * ($order->getBaseTotalDue() / $order->getTotalDue()); // convert $amount to order base currency
+            if(abs($convertedBack - $order->getBaseTotalDue()) <= (double)0.01) // if less than 1 penny diff
+            {
+                $convertedBack = $order->getBaseTotalDue(); // then make them exactly the same, it must've been a rounding error
+            }
+            $amount = $convertedBack;
+        }
+
         if ($response['StatusCode'] === TransactionResultCode::SUCCESS) {
             if ($response['TransactionType'] === TransactionType::SALE) {
-                $payment->registerCaptureNotification($response['Amount'] / 100);
+                $payment->registerCaptureNotification($amount);
             } else {
-                $payment->registerAuthorizationNotification($response['Amount'] / 100);
+                $payment->registerAuthorizationNotification($amount);
             }
         }
         $order->save();
